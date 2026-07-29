@@ -1,0 +1,5 @@
+# Nunca subir credenciales ni tokens de Strava
+strava_creds.txt
+strava_token.json
+*.token.json
+.env
