@@ -5,7 +5,7 @@ con los datos obtenidos directamente de la [API de Strava](https://developers.st
 
 ## Contenido
 
-- **`bitacora_deportiva.html`** — panel principal: KPIs, reparto por deporte, kilómetros
+- **`index.html`** — panel principal: KPIs, reparto por deporte, kilómetros
   por año/mes, calendario de actividad (heatmap), récords personales y tabla de
   actividades (ordenable por cualquier columna).
 - **`graficos.html`** — página de gráficos: volumen mensual, reparto semanal,

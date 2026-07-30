@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Trae las actividades de Strava vía API y actualiza activities.json (y, opcionalmente,
-  los datos embebidos en bitacora_deportiva.html / graficos.html).
+  los datos embebidos en index.html / graficos.html).
 
 .DESCRIPTION
   Reproduce el flujo usado para construir este dashboard:
@@ -30,7 +30,7 @@
 
 .PARAMETER UpdateDashboards
   Si se indica, además de escribir activities.json, sustituye los datos embebidos
-  en bitacora_deportiva.html y graficos.html (deben estar en la misma carpeta).
+  en index.html y graficos.html (deben estar en la misma carpeta).
 
 .EXAMPLE
   # Primera vez (con el código de la URL de autorización):
@@ -137,7 +137,7 @@ Write-Host "Escrito $outPath ($($mapped.Count) actividades)"
 if ($UpdateDashboards) {
   $bytes = [System.IO.File]::ReadAllBytes($outPath)
   $b64 = [Convert]::ToBase64String($bytes)
-  foreach ($file in @("bitacora_deportiva.html","graficos.html")) {
+  foreach ($file in @("index.html","graficos.html")) {
     $htmlPath = Join-Path $PSScriptRoot $file
     if (-not (Test-Path $htmlPath)) { Write-Host "Aviso: no encontrado $htmlPath, se omite"; continue }
     $html = Get-Content -Path $htmlPath -Raw -Encoding UTF8
