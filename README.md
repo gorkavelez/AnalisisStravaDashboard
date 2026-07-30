@@ -3,12 +3,14 @@
 Dashboard personal de actividades deportivas (carrera, bici, senderismo, caminata...),
 con los datos obtenidos directamente de la [API de Strava](https://developers.strava.com/).
 
+**▶ [Ver el dashboard en vivo](https://gorkavelez.github.io/AnalisisStravaDashboard/)** (GitHub Pages)
+
 ## Contenido
 
-- **`index.html`** — panel principal: KPIs, reparto por deporte, kilómetros
+- **[`index.html`](index.html)** — panel principal: KPIs, reparto por deporte, kilómetros
   por año/mes, calendario de actividad (heatmap), récords personales y tabla de
   actividades (ordenable por cualquier columna).
-- **`graficos.html`** — página de gráficos: volumen mensual, reparto semanal,
+- **[`graficos.html`](graficos.html)** — página de gráficos: volumen mensual, reparto semanal,
   desnivel acumulado y evolución del ritmo de carrera.
 - **`activities.json`** — snapshot de las actividades tal y como las devuelve la API de
   Strava, ya mapeadas al esquema compacto que usan los dashboards (ver más abajo).
