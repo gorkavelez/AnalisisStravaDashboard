@@ -30,6 +30,7 @@ Array de objetos con claves cortas para minimizar el tamaño embebido:
 
 | Clave | Significado                              |
 |-------|-------------------------------------------|
+| `id`  | ID de la actividad en Strava (para enlazar a `strava.com/activities/{id}`) |
 | `d`   | Fecha/hora de inicio (ISO, sin zona)       |
 | `n`   | Nombre de la actividad                     |
 | `t`   | Tipo (Carrera, Bicicleta, Senderismo, Caminata, u otro deporte de Strava) |

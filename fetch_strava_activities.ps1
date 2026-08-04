@@ -7,7 +7,7 @@
   Reproduce el flujo usado para construir este dashboard:
     1. Intercambia un refresh token (o un código de autorización la primera vez) por un access token.
     2. Pagina GET /athlete/activities hasta traer todas las actividades.
-    3. Mapea los campos de Strava a un esquema compacto (d,n,t,es,dm,vm,va,eg,ha,hm,cd,wt).
+    3. Mapea los campos de Strava a un esquema compacto (id,d,n,t,es,dm,vm,va,eg,ha,hm,cd,wt).
     4. Escribe activities.json y, si se pide, sustituye el bloque de datos embebido
        en los dos HTML del dashboard.
 
@@ -111,6 +111,7 @@ function Map-Type($sportType, $type) {
 
 $mapped = foreach ($a in $all) {
   [PSCustomObject]@{
+    id = $a.id
     d  = ($a.start_date -replace 'Z$','')
     n  = $a.name
     t  = Map-Type $a.sport_type $a.type
