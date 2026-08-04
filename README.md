@@ -9,20 +9,27 @@ con los datos obtenidos directamente de la [API de Strava](https://developers.st
 
 - **[`index.html`](index.html)** — panel principal: KPIs, reparto por deporte, kilómetros
   por año/mes, calendario de actividad (heatmap), récords personales y tabla de
-  actividades (ordenable por cualquier columna).
+  actividades (ordenable por cualquier columna). El nombre de cada actividad enlaza a
+  su página en Strava, y las carreras recientes con datos de parciales se pueden
+  desplegar haciendo clic en la fila para ver el ritmo, la FC media y la zona de cada km.
 - **[`graficos.html`](graficos.html)** — página de gráficos: volumen mensual, reparto semanal,
   desnivel acumulado y evolución del ritmo de carrera.
 - **`activities.json`** — snapshot de las actividades tal y como las devuelve la API de
   Strava, ya mapeadas al esquema compacto que usan los dashboards (ver más abajo).
+- **`splits.json`** — parciales por km (ritmo, FC media, zona) de las carreras recientes,
+  calculados a partir de los streams de Strava. Solo cubre un subconjunto acotado de
+  actividades (ver más abajo por qué).
 - **`fetch_strava_activities.ps1`** — script de PowerShell con la lógica de conexión a
   la API: intercambio OAuth, paginación de `/athlete/activities`, mapeo de campos y
   (opcionalmente) reinyección de los datos en los dos HTML.
+- **`fetch_strava_splits.ps1`** — script complementario que calcula los parciales por km
+  de las carreras recientes (ver "Parciales por km y zonas de FC" más abajo).
 
 Ambos HTML son **autocontenidos**: los datos van embebidos en base64 dentro de un
 `<script type="text/plain">`, así que se pueden abrir directamente en un navegador o
 publicarse tal cual (por ejemplo como Artifact de Claude), sin depender de
-`activities.json` en tiempo de ejecución. `activities.json` se guarda aparte solo como
-snapshot legible de "lo que trajo la API".
+`activities.json`/`splits.json` en tiempo de ejecución. Esos `.json` se guardan aparte
+solo como snapshot legible de "lo que trajo la API".
 
 ## Esquema de `activities.json`
 
@@ -75,6 +82,31 @@ Necesitas una app registrada en <https://www.strava.com/settings/api> (campo
 ```
 
 Esto reescribe `activities.json` y actualiza los datos embebidos en ambos HTML.
+
+## Parciales por km y zonas de FC
+
+En la tabla de actividades de `index.html`, las carreras que tienen parciales
+disponibles muestran un icono ▸ y se pueden desplegar haciendo clic en la fila para
+ver el ritmo, la FC media y la zona (Z1-Z5) de cada kilómetro.
+
+Esto usa el endpoint de *streams* de Strava (`/activities/{id}/streams`), que da datos
+punto a punto pero **exige una llamada por actividad** — a diferencia del resto del
+dashboard, no viene en el listado general. Por eso solo se calcula para un número
+acotado de carreras recientes (30 por defecto), no para las 541 actividades: hacerlo
+para todas tardaría más de una hora por el límite de 100 peticiones/15 min de la API.
+
+Las zonas son una **aproximación por % de FC máxima histórica** (no tus zonas exactas
+configuradas en Strava, que requerirían el permiso `profile:read_all` y volver a
+autorizar la app): Z1 <60%, Z2 60-70%, Z3 70-80%, Z4 80-90%, Z5 ≥90%.
+
+Para recalcularlo (o ampliar cuántas carreras cubre):
+
+```powershell
+./fetch_strava_splits.ps1 -ClientId TU_CLIENT_ID -ClientSecret TU_CLIENT_SECRET -RefreshToken TU_REFRESH_TOKEN -Count 30
+```
+
+`-Count` controla cuántas carreras recientes procesa; `-MaxHr` cambia la FC de
+referencia para las zonas (por defecto 192, la máxima histórica registrada).
 
 ## Seguridad
 
