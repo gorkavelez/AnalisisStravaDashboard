@@ -13,6 +13,7 @@
     --accent:  #2a78d6;
     --cat-1:#2a78d6; --cat-2:#eb6834; --cat-3:#1baf7a; --cat-4:#eda100; --cat-5:#e87ba4;
     --seq-0:#dfe6e2; --seq-1:#86b6ef; --seq-2:#5598e7; --seq-3:#2a78d6; --seq-4:#1c5cab; --seq-5:#104281;
+    --zone-1:#8fa3ad; --zone-2:#3fae6a; --zone-3:#dba82e; --zone-4:#e2793a; --zone-5:#d64545;
     --shadow: 0 1px 2px rgba(12,18,16,0.04), 0 8px 24px rgba(12,18,16,0.05);
     --radius: 14px;
   }
@@ -29,6 +30,7 @@
       --accent:  #3987e5;
       --cat-1:#3987e5; --cat-2:#d95926; --cat-3:#199e70; --cat-4:#c98500; --cat-5:#d55181;
       --seq-0:#20282a; --seq-1:#9ec5f4; --seq-2:#6da7ec; --seq-3:#3987e5; --seq-4:#256abf; --seq-5:#184f95;
+      --zone-1:#7c94a0; --zone-2:#3fbf74; --zone-3:#e8bd4a; --zone-4:#ea8449; --zone-5:#e35555;
       --shadow: 0 1px 2px rgba(0,0,0,0.25), 0 10px 30px rgba(0,0,0,0.35);
     }
   }
@@ -44,6 +46,7 @@
     --accent:  #3987e5;
     --cat-1:#3987e5; --cat-2:#d95926; --cat-3:#199e70; --cat-4:#c98500; --cat-5:#d55181;
     --seq-0:#20282a; --seq-1:#9ec5f4; --seq-2:#6da7ec; --seq-3:#3987e5; --seq-4:#256abf; --seq-5:#184f95;
+    --zone-1:#7c94a0; --zone-2:#3fbf74; --zone-3:#e8bd4a; --zone-4:#ea8449; --zone-5:#e35555;
     --shadow: 0 1px 2px rgba(0,0,0,0.25), 0 10px 30px rgba(0,0,0,0.35);
   }
   :root[data-theme="light"]{
@@ -58,6 +61,7 @@
     --accent:  #2a78d6;
     --cat-1:#2a78d6; --cat-2:#eb6834; --cat-3:#1baf7a; --cat-4:#eda100; --cat-5:#e87ba4;
     --seq-0:#dfe6e2; --seq-1:#86b6ef; --seq-2:#5598e7; --seq-3:#2a78d6; --seq-4:#1c5cab; --seq-5:#104281;
+    --zone-1:#8fa3ad; --zone-2:#3fae6a; --zone-3:#dba82e; --zone-4:#e2793a; --zone-5:#d64545;
     --shadow: 0 1px 2px rgba(12,18,16,0.04), 0 8px 24px rgba(12,18,16,0.05);
   }
 
@@ -113,6 +117,20 @@
 
   .callout{ display:flex; align-items:baseline; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); font-size:13px; color: var(--ink-2); }
   .callout b{ font-size:18px; color: var(--ink); font-weight:700; }
+
+  .pace-hr-scroll{ overflow-x:auto; }
+  .pace-hr-table{ width:100%; border-collapse:collapse; font-size:12.5px; min-width:520px; }
+  .pace-hr-table th{ text-align:center; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); font-weight:700; padding:0 8px 8px; border-bottom:1px solid var(--line); }
+  .pace-hr-table th:first-child{ text-align:left; }
+  .pace-hr-table td{ text-align:center; padding:7px 8px; border-bottom:1px solid var(--line); }
+  .pace-hr-table td:first-child{ text-align:left; font-weight:600; font-variant-numeric:tabular-nums; }
+  .pace-hr-table tbody tr:last-child td{ border-bottom:none; }
+  .pace-hr-table tbody tr:hover{ background: var(--surface-2); }
+  .pace-cell{ display:inline-flex; flex-direction:column; align-items:center; gap:2px; line-height:1.15; }
+  .pace-cell .hr{ font-weight:700; font-variant-numeric:tabular-nums; }
+  .pace-cell .zone-chip{ display:inline-flex; align-items:center; justify-content:center; min-width:24px; padding:0px 5px; border-radius:999px; font-size:10px; font-weight:700; color:#fff; }
+  .pace-cell .n{ font-size:10px; color:var(--muted); }
+  .pace-empty{ color:var(--muted); }
 
   footer{ text-align:center; font-size:12px; color: var(--muted); padding-top:10px; }
 </style>
@@ -184,6 +202,19 @@
     </div>
   </div>
 
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title">Ritmo vs frecuencia cardiaca por año</div>
+      <div class="panel-hint">A qué FC corría cada ritmo, año a año · carreras ≥1 km</div>
+    </div>
+    <div class="pace-hr-scroll">
+      <table class="pace-hr-table" id="pace-hr-table"></table>
+    </div>
+    <div style="margin-top:10px; font-size:11.5px; color:var(--muted);">
+      Cada celda: FC media y zona estimada (por % de tu FC máxima histórica) en ese tramo de ritmo ese año · el número pequeño es cuántas carreras lo componen
+    </div>
+  </div>
+
   <footer>Datos obtenidos directamente de la API de Strava</footer>
 </div>
 
@@ -215,7 +246,8 @@
     dist: r.dm || 0,
     avgSpeed: r.va || 0,
     elev: r.eg || 0,
-    avgHr: r.ha || 0
+    avgHr: r.ha || 0,
+    maxHr: r.hm || 0
   })).sort((a,b) => a.date - b.date);
 
   const YEAR_MIN = rows[0].year, YEAR_MAX = rows[rows.length-1].year;
@@ -597,6 +629,65 @@
   });
   paceCanvas.addEventListener("mouseleave", () => paceTip.classList.remove("show"));
 
+  /* ================= 5. RITMO VS FC POR AÑO (tabla, ajena a los filtros) ================= */
+  const PACE_HR_BUCKET_SEC = 30;
+
+  function zoneOfHr(hr, maxHrRef){
+    const pct = hr/maxHrRef;
+    if (pct<0.60) return 1;
+    if (pct<0.70) return 2;
+    if (pct<0.80) return 3;
+    if (pct<0.90) return 4;
+    return 5;
+  }
+
+  function fmtPaceBucketLabel(bucketIdx){
+    const fmt = s => { const m=Math.floor(s/60), sec=s%60; return `${m}:${String(sec).padStart(2,"0")}`; };
+    const startSec = bucketIdx*PACE_HR_BUCKET_SEC;
+    return `${fmt(startSec)}-${fmt(startSec+PACE_HR_BUCKET_SEC-1)}`;
+  }
+
+  function paceHrByYear(){
+    const data = rows.filter(r => r.type==="Carrera" && r.dist>=1000 && r.avgSpeed>0 && r.avgHr>0 && !BAD.test(r.name));
+    if (!data.length) return null;
+    const maxHrRef = Math.max(...rows.filter(r=>r.maxHr>0).map(r=>r.maxHr));
+    const years = Array.from(new Set(data.map(r=>r.year))).sort((a,b)=>a-b);
+
+    const buckets = {};
+    data.forEach(r => {
+      const b = Math.floor((1000/r.avgSpeed)/PACE_HR_BUCKET_SEC);
+      if (!buckets[b]) buckets[b] = {};
+      if (!buckets[b][r.year]) buckets[b][r.year] = {sum:0, count:0};
+      buckets[b][r.year].sum += r.avgHr;
+      buckets[b][r.year].count++;
+    });
+
+    const bucketIdxs = Object.keys(buckets).map(Number).sort((a,b)=>a-b);
+    return {years, buckets, bucketIdxs, maxHrRef};
+  }
+
+  function drawPaceHrTable(){
+    const table = document.getElementById("pace-hr-table");
+    const model = paceHrByYear();
+    if (!model || !model.bucketIdxs.length){
+      table.innerHTML = `<tr><td class="pace-empty">No hay suficientes carreras con FC registrada.</td></tr>`;
+      return;
+    }
+    const {years, buckets, bucketIdxs, maxHrRef} = model;
+    const thead = `<thead><tr><th>Ritmo</th>${years.map(y => `<th>${y}</th>`).join("")}</tr></thead>`;
+    const tbody = bucketIdxs.map(b => {
+      const cells = years.map(y => {
+        const cell = buckets[b][y];
+        if (!cell) return `<td class="pace-empty">—</td>`;
+        const avgHr = Math.round(cell.sum/cell.count);
+        const zone = zoneOfHr(avgHr, maxHrRef);
+        return `<td><span class="pace-cell"><span class="hr">${avgHr}</span><span class="zone-chip" style="background:var(--zone-${zone})">Z${zone}</span><span class="n">n=${cell.count}</span></span></td>`;
+      }).join("");
+      return `<tr><td>${fmtPaceBucketLabel(b)}/km</td>${cells}</tr>`;
+    }).join("");
+    table.innerHTML = thead + `<tbody>${tbody}</tbody>`;
+  }
+
   /* ================= ORCHESTRATION ================= */
   function renderAll(){
     renderFilterBar();
@@ -608,6 +699,7 @@
 
   renderYearSelect();
   renderAll();
+  drawPaceHrTable();
 
   let resizeRaf = null;
   window.addEventListener("resize", () => {
