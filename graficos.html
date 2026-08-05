@@ -102,6 +102,7 @@
   .panel-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
   .panel-title{ font-size:15px; font-weight:700; letter-spacing:-0.01em; }
   .panel-hint{ font-size:12.5px; color: var(--muted); }
+  .panel-head-text{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
 
   .chart-box{ position:relative; width:100%; }
   canvas{ display:block; width:100%; }
@@ -204,14 +205,17 @@
 
   <div class="panel">
     <div class="panel-head">
-      <div class="panel-title">Ritmo vs frecuencia cardiaca por año</div>
-      <div class="panel-hint">A qué FC corría cada ritmo, año a año · carreras ≥1 km</div>
+      <div class="panel-head-text">
+        <div class="panel-title">Ritmo vs frecuencia cardiaca por año</div>
+        <div class="panel-hint" id="pacehr-hint">A qué FC corría cada ritmo, año a año</div>
+      </div>
+      <select class="year-select" id="pacehr-cat-select" aria-label="Filtrar por tipo de actividad"></select>
     </div>
     <div class="pace-hr-scroll">
       <table class="pace-hr-table" id="pace-hr-table"></table>
     </div>
     <div style="margin-top:10px; font-size:11.5px; color:var(--muted);">
-      Cada celda: FC media y zona estimada (por % de tu FC máxima histórica) en ese tramo de ritmo ese año · el número pequeño es cuántas carreras lo componen
+      Cada celda: FC media y zona estimada (por % de tu FC máxima histórica) en ese tramo de ritmo ese año · el número pequeño es cuántas actividades lo componen
     </div>
   </div>
 
@@ -647,8 +651,30 @@
     return `${fmt(startSec)}-${fmt(startSec+PACE_HR_BUCKET_SEC-1)}`;
   }
 
+  let paceHrCat = "all";
+
+  function initPaceHrSelect(){
+    const sel = document.getElementById("pacehr-cat-select");
+    const opts = [`<option value="all">Todas las actividades</option>`]
+      .concat(CAT_ORDER.map(c => `<option value="${c}">${c}</option>`));
+    sel.innerHTML = opts.join("");
+    sel.addEventListener("change", () => {
+      paceHrCat = sel.value;
+      updatePaceHrHint();
+      drawPaceHrTable();
+    });
+    updatePaceHrHint();
+  }
+
+  function updatePaceHrHint(){
+    const hint = document.getElementById("pacehr-hint");
+    hint.textContent = paceHrCat==="all"
+      ? "A qué FC corría cada ritmo, año a año · todas las actividades ≥1 km"
+      : `A qué FC corría cada ritmo, año a año · ${paceHrCat.toLowerCase()} ≥1 km`;
+  }
+
   function paceHrByYear(){
-    const data = rows.filter(r => r.type==="Carrera" && r.dist>=1000 && r.avgSpeed>0 && r.avgHr>0 && !BAD.test(r.name));
+    const data = rows.filter(r => (paceHrCat==="all" || r.cat===paceHrCat) && r.dist>=1000 && r.avgSpeed>0 && r.avgHr>0 && !BAD.test(r.name));
     if (!data.length) return null;
     const maxHrRef = Math.max(...rows.filter(r=>r.maxHr>0).map(r=>r.maxHr));
     const years = Array.from(new Set(data.map(r=>r.year))).sort((a,b)=>a-b);
@@ -670,7 +696,7 @@
     const table = document.getElementById("pace-hr-table");
     const model = paceHrByYear();
     if (!model || !model.bucketIdxs.length){
-      table.innerHTML = `<tr><td class="pace-empty">No hay suficientes carreras con FC registrada.</td></tr>`;
+      table.innerHTML = `<tr><td class="pace-empty">No hay suficientes actividades con FC registrada para este filtro.</td></tr>`;
       return;
     }
     const {years, buckets, bucketIdxs, maxHrRef} = model;
@@ -699,6 +725,7 @@
 
   renderYearSelect();
   renderAll();
+  initPaceHrSelect();
   drawPaceHrTable();
 
   let resizeRaf = null;
