@@ -13,9 +13,12 @@ con los datos obtenidos directamente de la [API de Strava](https://developers.st
   su página en Strava, y las carreras recientes con datos de parciales se pueden
   desplegar haciendo clic en la fila para ver el ritmo, la FC media y la zona de cada km.
 - **[`graficos.html`](graficos.html)** — página de gráficos: volumen mensual, reparto semanal,
-  desnivel acumulado, evolución del ritmo de carrera, y una tabla de **ritmo vs FC por
+  desnivel acumulado, evolución del ritmo de carrera, una tabla de **ritmo vs FC por
   año** (para cada tramo de ritmo, la FC media y zona estimada en cada año — p. ej.
-  comparar a qué frecuencia cardiaca corrías a 5:45/km en 2025 frente a ahora).
+  comparar a qué frecuencia cardiaca corrías a 5:45/km en 2025 frente a ahora) y una
+  **comparativa year to date**: eliges los años y el deporte, y compara actividades,
+  km, ritmo medio, FC media y FC máxima del 1 de enero hasta la fecha de hoy en cada
+  año, con el % de evolución respecto al año anterior seleccionado.
 - **`activities.json`** — snapshot de las actividades tal y como las devuelve la API de
   Strava, ya mapeadas al esquema compacto que usan los dashboards (ver más abajo).
 - **`splits.json`** — parciales por km (ritmo, FC media, zona) de las carreras recientes,

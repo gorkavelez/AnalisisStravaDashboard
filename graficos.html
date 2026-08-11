@@ -133,6 +133,10 @@
   .pace-cell .n{ font-size:10px; color:var(--muted); }
   .pace-empty{ color:var(--muted); }
 
+  .ytd-controls{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:14px; }
+  .ytd-year-toggles{ display:flex; flex-wrap:wrap; gap:6px; }
+  .ytd-delta{ font-size:10.5px; color:var(--muted); margin-top:1px; font-variant-numeric:tabular-nums; }
+
   footer{ text-align:center; font-size:12px; color: var(--muted); padding-top:10px; }
 </style>
 
@@ -216,6 +220,25 @@
     </div>
     <div style="margin-top:10px; font-size:11.5px; color:var(--muted);">
       Cada celda: FC media y zona estimada (por % de tu FC máxima histórica) en ese tramo de ritmo ese año · el número pequeño es cuántas actividades lo componen
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-head-text">
+        <div class="panel-title">Comparativa year to date</div>
+        <div class="panel-hint" id="ytd-note">Comparando el mismo periodo del año en cada uno</div>
+      </div>
+      <select class="year-select" id="ytd-cat-select" aria-label="Filtrar por tipo de actividad"></select>
+    </div>
+    <div class="ytd-controls">
+      <div class="segmented ytd-year-toggles" id="ytd-year-toggles" role="group" aria-label="Años a comparar"></div>
+    </div>
+    <div class="pace-hr-scroll">
+      <table class="pace-hr-table" id="ytd-table"></table>
+    </div>
+    <div style="margin-top:10px; font-size:11.5px; color:var(--muted);">
+      El % bajo cada valor compara con el año seleccionado anterior (de izquierda a derecha) · el ritmo baja cuando corres más rápido
     </div>
   </div>
 
@@ -714,6 +737,104 @@
     table.innerHTML = thead + `<tbody>${tbody}</tbody>`;
   }
 
+  /* ================= 6. COMPARATIVA YEAR TO DATE ================= */
+  let ytdCat = "all";
+  const ytdYears = new Set();
+
+  function ytdCutoff(){
+    const now = new Date();
+    return {month: now.getMonth(), day: now.getDate()};
+  }
+
+  function ytdStatsForYear(year, cat, cutoff){
+    const data = rows.filter(r => {
+      if (cat!=="all" && r.cat!==cat) return false;
+      if (r.year!==year) return false;
+      if (r.date.getMonth() > cutoff.month) return false;
+      if (r.date.getMonth()===cutoff.month && r.date.getDate() > cutoff.day) return false;
+      return true;
+    });
+    if (!data.length) return null;
+
+    const paceRows = data.filter(r => r.dist>0 && r.avgSpeed>0);
+    const totalDistPace = paceRows.reduce((s,r)=>s+r.dist,0);
+    const totalSecPace = paceRows.reduce((s,r)=>s+(r.dist/r.avgSpeed),0); // tiempo en movimiento, igual que el resto del panel (avgSpeed = dist/tiempo en movimiento)
+
+    const hrRows = data.filter(r=>r.avgHr>0);
+    const hmRows = data.filter(r=>r.maxHr>0);
+
+    return {
+      count: data.length,
+      km: data.reduce((s,r)=>s+r.dist,0)/1000,
+      paceSecPerKm: totalDistPace>0 ? totalSecPace/(totalDistPace/1000) : 0,
+      avgHr: hrRows.length ? hrRows.reduce((s,r)=>s+r.avgHr,0)/hrRows.length : 0,
+      maxHr: hmRows.length ? Math.max(...hmRows.map(r=>r.maxHr)) : 0
+    };
+  }
+
+  const YTD_METRICS = [
+    {key:"count", label:"Actividades", fmt: v => fmtInt(v)},
+    {key:"km", label:"Kilómetros", fmt: v => fmtInt(v)+" km"},
+    {key:"paceSecPerKm", label:"Ritmo medio", fmt: v => { const m=Math.floor(v/60), s=Math.round(v%60); return `${m}:${String(s).padStart(2,"0")}/km`; }},
+    {key:"avgHr", label:"FC media", fmt: v => fmtInt(v)+" lpm"},
+    {key:"maxHr", label:"FC máxima", fmt: v => fmtInt(v)+" lpm"}
+  ];
+
+  function drawYtdCompare(){
+    const cutoff = ytdCutoff();
+    const cutoffLabel = `${cutoff.day} ${MONTHS[cutoff.month]}`;
+    document.getElementById("ytd-note").textContent =
+      `Del 1 ene al ${cutoffLabel} de cada año seleccionado (mismo periodo, para comparar en igualdad de condiciones)`;
+
+    const table = document.getElementById("ytd-table");
+    const years = Array.from(ytdYears).sort((a,b)=>a-b);
+    if (!years.length){
+      table.innerHTML = `<tr><td class="pace-empty">Elige al menos un año arriba.</td></tr>`;
+      return;
+    }
+
+    const stats = years.map(y => ytdStatsForYear(y, ytdCat, cutoff));
+    const thead = `<thead><tr><th></th>${years.map(y => `<th>${y}</th>`).join("")}</tr></thead>`;
+    const tbody = YTD_METRICS.map(m => {
+      const cells = stats.map((s, i) => {
+        const val = s ? s[m.key] : null;
+        const missing = !s || (m.key==="km" ? val==null : !val);
+        if (missing) return `<td class="pace-empty">—</td>`;
+        const prev = i>0 ? stats[i-1] : null;
+        let delta = "";
+        if (prev && prev[m.key]){
+          const pct = ((val - prev[m.key]) / prev[m.key]) * 100;
+          const arrow = Math.abs(pct)<0.05 ? "" : (pct>0 ? "▲ " : "▼ ");
+          delta = `<div class="ytd-delta">${arrow}${Math.abs(pct).toFixed(1)}%</div>`;
+        }
+        return `<td><span class="pace-cell"><span class="hr">${m.fmt(val)}</span>${delta}</span></td>`;
+      }).join("");
+      return `<tr><td>${m.label}</td>${cells}</tr>`;
+    }).join("");
+    table.innerHTML = thead + `<tbody>${tbody}</tbody>`;
+  }
+
+  function initYtdControls(){
+    const defaultYears = YEARS.slice(-3);
+    defaultYears.forEach(y => ytdYears.add(y));
+
+    const wrap = document.getElementById("ytd-year-toggles");
+    wrap.innerHTML = YEARS.map(y => `<button class="seg-btn${ytdYears.has(y) ? " active" : ""}" data-year="${y}">${y}</button>`).join("");
+    wrap.querySelectorAll(".seg-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const y = +btn.dataset.year;
+        if (ytdYears.has(y)) ytdYears.delete(y); else ytdYears.add(y);
+        btn.classList.toggle("active");
+        drawYtdCompare();
+      });
+    });
+
+    const sel = document.getElementById("ytd-cat-select");
+    const opts = [`<option value="all">Todas las actividades</option>`].concat(CAT_ORDER.map(c => `<option value="${c}">${c}</option>`));
+    sel.innerHTML = opts.join("");
+    sel.addEventListener("change", () => { ytdCat = sel.value; drawYtdCompare(); });
+  }
+
   /* ================= ORCHESTRATION ================= */
   function renderAll(){
     renderFilterBar();
@@ -727,6 +848,8 @@
   renderAll();
   initPaceHrSelect();
   drawPaceHrTable();
+  initYtdControls();
+  drawYtdCompare();
 
   let resizeRaf = null;
   window.addEventListener("resize", () => {
