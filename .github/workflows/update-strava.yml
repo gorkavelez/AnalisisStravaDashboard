@@ -1,0 +1,35 @@
+name: Update Strava data
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch activities from Strava and update dashboards
+        shell: pwsh
+        run: |
+          ./fetch_strava_activities.ps1 `
+            -ClientId "${{ secrets.STRAVA_CLIENT_ID }}" `
+            -ClientSecret "${{ secrets.STRAVA_CLIENT_SECRET }}" `
+            -RefreshToken "${{ secrets.STRAVA_REFRESH_TOKEN }}" `
+            -UpdateDashboards
+
+      - name: Commit and push if there are changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add activities.json index.html graficos.html
+          if git diff --cached --quiet; then
+            echo "No hay actividades nuevas."
+          else
+            git commit -m "Update activities from Strava API"
+            git push
+          fi
