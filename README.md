@@ -88,32 +88,6 @@ Necesitas una app registrada en <https://www.strava.com/settings/api> (campo
 
 Esto reescribe `activities.json` y actualiza los datos embebidos en ambos HTML.
 
-## Actualizar los datos desde GitHub Actions (sin PowerShell local)
-
-Como alternativa a ejecutar el script a mano, el workflow
-[`update-strava.yml`](.github/workflows/update-strava.yml) hace lo mismo desde un
-runner de GitHub (que sí tiene salida a internet, a diferencia de algunos entornos
-en la nube con proxy restringido) y comitea los cambios automáticamente.
-
-**Configuración (una sola vez):**
-
-1. Obtén un `refresh_token` **en tu máquina local** (no lo hagas desde un entorno
-   compartido/público): sigue los pasos de "Primera vez" de más arriba hasta
-   conseguir el `refresh_token` que imprime el script.
-2. Este repositorio es **público**, así que los logs de GitHub Actions son visibles
-   por cualquiera. Por eso el workflow solo admite el flujo con `-RefreshToken`
-   (nunca imprime tokens) — el intercambio inicial del código de autorización
-   (`-AuthCode`) debes hacerlo tú localmente, nunca dentro de una Action.
-3. En `Settings → Secrets and variables → Actions` del repo, crea tres secrets:
-   `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_REFRESH_TOKEN`.
-
-**Uso:** pestaña *Actions* → *Update Strava data* → *Run workflow*. Trae las
-actividades nuevas, actualiza `activities.json` y los HTML, y hace commit y push
-solo si hay cambios.
-
-(El workflow debe existir en la rama por defecto, `main`, para que el botón "Run
-workflow" aparezca en la pestaña Actions.)
-
 ## Parciales por km y zonas de FC
 
 En la tabla de actividades de `index.html`, las carreras que tienen parciales
