@@ -611,7 +611,7 @@
     ctx.strokeStyle = gridColor; ctx.lineWidth=1; ctx.font="11px system-ui, sans-serif"; ctx.fillStyle = mutedColor;
     for (let i=0;i<=3;i++){
       const val = loPace + (hiPace-loPace)*(i/3);
-      const y = padT + plotH - (i/3)*plotH;
+      const y = padT + (i/3)*plotH;
       ctx.beginPath(); ctx.moveTo(padL,y+0.5); ctx.lineTo(w-padR,y+0.5); ctx.stroke();
       const m = Math.floor(val), s = Math.round((val-m)*60);
       ctx.textAlign="right"; ctx.fillText(`${m}:${String(s).padStart(2,"0")}`, padL-8, y+3);
