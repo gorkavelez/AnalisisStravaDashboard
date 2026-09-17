@@ -3,3 +3,7 @@ strava_creds.txt
 strava_token.json
 *.token.json
 .env
+
+# Skills locales de Claude Code (no forman parte de la app)
+.agents/
+skills-lock.json
