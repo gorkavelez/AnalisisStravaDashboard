@@ -152,6 +152,7 @@
   .panel-head-text{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
 
   .chart-box{ position:relative; width:100%; }
+  .chart-scroll{ overflow-x:auto; overflow-y:hidden; scroll-behavior:smooth; -webkit-overflow-scrolling:touch; }
   canvas{ display:block; width:100%; }
   .tooltip{ position:absolute; pointer-events:none; z-index:5; background: var(--ink); color: var(--bg); font-size:12px; line-height:1.45; padding:8px 10px; border-radius:8px; box-shadow: 0 6px 20px rgba(0,0,0,0.25); transform: translate(-50%, calc(-100% - 10px)); white-space:nowrap; opacity:0; transition: opacity 100ms ease; }
   .tooltip.show{ opacity:1; }
@@ -251,6 +252,45 @@
     <div class="chart-box" id="pace-box">
       <canvas id="pace-canvas" height="240"></canvas>
       <div class="tooltip" id="pace-tip"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title">Carga de entrenamiento (PMC)</div>
+      <div class="panel-hint">Fitness, fatiga y forma · todos los deportes, independiente de los filtros · desliza el gráfico para ver periodos anteriores</div>
+    </div>
+    <div class="chart-scroll" id="pmc-scroll">
+      <div class="chart-box" id="pmc-box">
+        <canvas id="pmc-canvas" height="240"></canvas>
+        <div class="tooltip" id="pmc-tip"></div>
+      </div>
+    </div>
+    <div class="legend" id="pmc-legend"></div>
+    <div class="callout" id="pmc-callout"></div>
+    <div style="margin-top:10px; font-size:11.5px; color:var(--muted);">
+      Estimación a partir de la frecuencia cardiaca (o de la duración si no hay FC), no de vatios reales ·
+      Fitness (CTL) = carga media de los últimos 45 días · Fatiga (ATL) = carga media de los últimos 7 días ·
+      Forma (TSB) = Fitness − Fatiga del día anterior
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title">Distribución del tiempo en zonas de FC</div>
+      <div class="panel-hint" id="hrzone-hint">Horas por semana en cada zona</div>
+    </div>
+    <div class="chart-scroll" id="hrzone-scroll">
+      <div class="chart-box" id="hrzone-box">
+        <canvas id="hrzone-canvas" height="220"></canvas>
+        <div class="tooltip" id="hrzone-tip"></div>
+      </div>
+    </div>
+    <div class="legend" id="hrzone-legend"></div>
+    <div class="callout" id="hrzone-callout"></div>
+    <div style="margin-top:10px; font-size:11.5px; color:var(--muted);">
+      Cada actividad cuenta entera en la zona de su FC media (no es un desglose segundo a segundo) ·
+      la regla del entrenamiento polarizado recomienda ≥80% del tiempo en Z1-Z2 (esfuerzo suave) y el resto en Z3-Z5
     </div>
   </div>
 
@@ -703,7 +743,315 @@
   });
   paceCanvas.addEventListener("mouseleave", () => paceTip.classList.remove("show"));
 
-  /* ================= 5. RITMO VS FC POR AÑO (tabla, ajena a los filtros) ================= */
+  /* ================= 5. PMC — CARGA DE ENTRENAMIENTO (ajena a los filtros) ================= */
+  const CTL_DAYS = 45, ATL_DAYS = 7;
+  const PMC_HISTORY_CAP_DAYS = 1095; // ~3 años · límite del histórico navegable por scroll (rendimiento del canvas)
+  const PMC_PX_PER_DAY = 4;
+  const PMC_MAX_HR_REF = (() => {
+    const vals = rows.filter(r => r.maxHr>0).map(r => r.maxHr);
+    return vals.length ? Math.max(...vals) : 190;
+  })();
+
+  function estimateLoad(r){
+    const hours = r.elapsed/3600;
+    if (!hours) return 0;
+    if (r.avgHr>0){
+      // aproximación tipo hrTSS: hrTSS ≈ horas × (FC media / FC umbral)² × 100, FC umbral ≈ 88% de la FC máxima histórica
+      const ratio = r.avgHr/(PMC_MAX_HR_REF*0.88);
+      return hours*ratio*ratio*100;
+    }
+    return hours*45; // sin FC registrada: estimación plana por duración (esfuerzo moderado)
+  }
+
+  function pmcDayKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+
+  function computePMC(){
+    if (!rows.length) return [];
+    const loadByDay = {};
+    rows.forEach(r => { loadByDay[r.day] = (loadByDay[r.day]||0) + estimateLoad(r); });
+
+    const start = new Date(rows[0].date); start.setHours(0,0,0,0);
+    const end = new Date(); end.setHours(0,0,0,0);
+    const kCTL = 1-Math.exp(-1/CTL_DAYS), kATL = 1-Math.exp(-1/ATL_DAYS);
+
+    let ctl = 0, atl = 0;
+    const series = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)){
+      const tsb = ctl-atl; // forma al empezar el día, antes de sumar la carga de hoy
+      const load = loadByDay[pmcDayKey(d)] || 0;
+      ctl = ctl + (load-ctl)*kCTL;
+      atl = atl + (load-atl)*kATL;
+      series.push({date:new Date(d), load, ctl, atl, tsb});
+    }
+    return series;
+  }
+
+  const PMC_SERIES = computePMC();
+
+  const pmcCanvas = document.getElementById("pmc-canvas");
+  const pmcTip = document.getElementById("pmc-tip");
+  const pmcScroll = document.getElementById("pmc-scroll");
+  let pmcLayout = null;
+  let pmcScrollInit = false;
+
+  function drawPMC(){
+    const box = document.getElementById("pmc-box");
+    const series = PMC_SERIES.slice(Math.max(0, PMC_SERIES.length-PMC_HISTORY_CAP_DAYS));
+    if (!series.length){ pmcLayout = null; return; }
+
+    const contentW = Math.max(pmcScroll.clientWidth, series.length*PMC_PX_PER_DAY);
+    box.style.width = contentW+"px";
+    const {ctx, w, h} = setupCanvas(pmcCanvas, box, 240);
+
+    const maxLoad = Math.max(10, ...series.map(s => Math.max(s.ctl,s.atl)));
+    const minTsb = Math.min(0, ...series.map(s=>s.tsb));
+    const maxTsb = Math.max(0, ...series.map(s=>s.tsb));
+    const domainMax = Math.max(maxLoad, maxTsb)*1.12;
+    const domainMin = Math.min(0, minTsb)*1.12;
+    const domainSpan = (domainMax-domainMin) || 1;
+
+    const padL = 34, padR = 8, padT = 14, padB = 20;
+    const plotW = w-padL-padR, plotH = h-padT-padB;
+    const t0 = series[0].date.getTime(), t1 = series[series.length-1].date.getTime();
+    const span = Math.max(1, t1-t0);
+    const xOf = t => padL + ((t-t0)/span)*plotW;
+    const yOf = v => padT + plotH - ((v-domainMin)/domainSpan)*plotH;
+
+    const gridColor = cssVar("--line"), mutedColor = cssVar("--muted");
+    const ctlColor = cssVar("--accent"), atlColor = cssVar("--cat-2");
+    const posColor = cssVar("--cat-3"), negColor = cssVar("--zone-5");
+
+    ctx.strokeStyle = gridColor; ctx.lineWidth=1; ctx.font="11px system-ui, sans-serif"; ctx.fillStyle=mutedColor;
+    const ticks = 4;
+    for (let i=0;i<=ticks;i++){
+      const val = domainMin+(domainSpan/ticks)*i;
+      const y = yOf(val);
+      ctx.beginPath(); ctx.moveTo(padL,y+0.5); ctx.lineTo(w-padR,y+0.5); ctx.stroke();
+      ctx.textAlign="right"; ctx.fillText(Math.round(val), padL-8, y+3);
+    }
+
+    const zeroY = yOf(0);
+    ctx.strokeStyle = mutedColor; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(padL, zeroY+0.5); ctx.lineTo(w-padR, zeroY+0.5); ctx.stroke();
+    ctx.setLineDash([]);
+
+    const barW = Math.max(1, plotW/series.length-0.5);
+    series.forEach(s => {
+      const x = xOf(s.date.getTime());
+      const yVal = yOf(s.tsb);
+      const top = Math.min(zeroY,yVal);
+      const barH = Math.max(1, Math.abs(zeroY-yVal));
+      ctx.fillStyle = s.tsb>=0 ? posColor+"55" : negColor+"66";
+      ctx.fillRect(x-barW/2, top, barW, barH);
+    });
+
+    const points = series.map(s => ({ x:xOf(s.date.getTime()), yCtl:yOf(s.ctl), s }));
+
+    ctx.beginPath();
+    points.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.yCtl) : ctx.lineTo(p.x,p.yCtl));
+    ctx.strokeStyle = ctlColor; ctx.lineWidth = 2.25; ctx.lineJoin = "round"; ctx.stroke();
+
+    ctx.beginPath();
+    series.forEach((s,i) => { const x=xOf(s.date.getTime()), y=yOf(s.atl); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+    ctx.strokeStyle = atlColor; ctx.lineWidth = 1.5; ctx.lineJoin = "round"; ctx.stroke();
+
+    const lastS = series[series.length-1];
+    const lx = xOf(lastS.date.getTime());
+    [[lastS.ctl,ctlColor],[lastS.atl,atlColor]].forEach(([v,c]) => {
+      ctx.beginPath(); ctx.arc(lx, yOf(v), 3.5, 0, Math.PI*2); ctx.fillStyle=c; ctx.fill();
+    });
+
+    ctx.fillStyle = mutedColor; ctx.textAlign = "center"; ctx.font = "11px system-ui, sans-serif";
+    let lastLabelMonth = null;
+    series.forEach(s => {
+      const mk = s.date.getFullYear()*12+s.date.getMonth();
+      if (mk!==lastLabelMonth && s.date.getDate()<=3){
+        ctx.fillText(MONTHS[s.date.getMonth()], xOf(s.date.getTime()), h-6);
+        lastLabelMonth = mk;
+      }
+    });
+
+    pmcLayout = {points};
+
+    if (!pmcScrollInit){ pmcScroll.scrollLeft = pmcScroll.scrollWidth; pmcScrollInit = true; }
+
+    document.getElementById("pmc-legend").innerHTML = `
+      <span class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span>Fitness (CTL)</span>
+      <span class="legend-item"><span class="legend-dot" style="background:var(--cat-2)"></span>Fatiga (ATL)</span>
+      <span class="legend-item"><span class="legend-dot" style="background:var(--cat-3)"></span>Forma (TSB)</span>`;
+
+    const cur = lastS.tsb;
+    let status, statusColor;
+    if (cur<=-30){ status="riesgo alto de sobrecarga"; statusColor=negColor; }
+    else if (cur<=-10){ status="fatiga alta, vigila la recuperación"; statusColor=negColor; }
+    else if (cur<5){ status="forma neutra"; statusColor=mutedColor; }
+    else if (cur<=25){ status="fresco, buena forma"; statusColor=posColor; }
+    else { status="muy fresco · riesgo de perder forma si no entrenas"; statusColor=posColor; }
+
+    document.getElementById("pmc-callout").innerHTML =
+      `<b style="color:${statusColor}">TSB ${cur>=0?"+":""}${Math.round(cur)}</b><span>${status} · Fitness ${Math.round(lastS.ctl)} · Fatiga ${Math.round(lastS.atl)}</span>`;
+  }
+
+  pmcCanvas.addEventListener("mousemove", (ev) => {
+    if (!pmcLayout || !pmcLayout.points.length) return;
+    const rect = pmcCanvas.getBoundingClientRect();
+    const mx = ev.clientX-rect.left;
+    let closest = pmcLayout.points[0];
+    pmcLayout.points.forEach(p => { if (Math.abs(p.x-mx) < Math.abs(closest.x-mx)) closest = p; });
+    const s = closest.s;
+    pmcTip.innerHTML = `<b>${fmtDateShort(s.date)}</b><div>Fitness (CTL): <b>${s.ctl.toFixed(0)}</b></div><div>Fatiga (ATL): <b>${s.atl.toFixed(0)}</b></div><div>Forma (TSB): <b>${s.tsb>=0?"+":""}${s.tsb.toFixed(0)}</b></div>`;
+    pmcTip.style.left = closest.x+"px";
+    pmcTip.style.top = closest.yCtl+"px";
+    pmcTip.classList.add("show");
+  });
+  pmcCanvas.addEventListener("mouseleave", () => pmcTip.classList.remove("show"));
+
+  /* ================= 6. DISTRIBUCIÓN SEMANAL DE TIEMPO EN ZONAS DE FC ================= */
+  const ZONE_COLORS = ["--zone-1","--zone-2","--zone-3","--zone-4","--zone-5"];
+  const ZONE_LABELS = ["Z1","Z2","Z3","Z4","Z5"];
+  const HRZONE_WEEKS_ALL = 156; // ~3 años · navegable con scroll
+  const HRZONE_PX_PER_WEEK = 26;
+  const HRZONE_MAX_HR_REF = (() => {
+    const vals = rows.filter(r => r.maxHr>0).map(r => r.maxHr);
+    return vals.length ? Math.max(...vals) : 190;
+  })();
+
+  function isoWeekStart(d){
+    const dt = new Date(d); dt.setHours(0,0,0,0);
+    const day = (dt.getDay()+6)%7; // 0=lunes
+    dt.setDate(dt.getDate()-day);
+    return dt;
+  }
+  function weekKey(d){ const s = isoWeekStart(d); return `${s.getFullYear()}-${String(s.getMonth()+1).padStart(2,"0")}-${String(s.getDate()).padStart(2,"0")}`; }
+
+  function hrZoneWeeklySeries(){
+    let weekStarts;
+    if (activeYear==="all"){
+      const endWeek = isoWeekStart(new Date());
+      weekStarts = [];
+      for (let i=HRZONE_WEEKS_ALL-1;i>=0;i--){
+        const w = new Date(endWeek); w.setDate(endWeek.getDate()-i*7);
+        weekStarts.push(w);
+      }
+    } else {
+      const jan1 = new Date(activeYear,0,1), dec31 = new Date(activeYear,11,31);
+      weekStarts = [];
+      for (let w = isoWeekStart(jan1); w<=dec31; w.setDate(w.getDate()+7)) weekStarts.push(new Date(w));
+    }
+
+    const byWeek = {};
+    weekStarts.forEach(w => { byWeek[weekKey(w)] = [0,0,0,0,0]; });
+    filtered().filter(r => r.avgHr>0 && r.elapsed>0).forEach(r => {
+      const key = weekKey(r.date);
+      if (!byWeek[key]) return;
+      const zone = zoneOfHr(r.avgHr, HRZONE_MAX_HR_REF);
+      byWeek[key][zone-1] += r.elapsed/3600;
+    });
+
+    return weekStarts.map(w => ({ weekStart:w, hours: byWeek[weekKey(w)] }));
+  }
+
+  const hrzoneCanvas = document.getElementById("hrzone-canvas");
+  const hrzoneTip = document.getElementById("hrzone-tip");
+  const hrzoneScroll = document.getElementById("hrzone-scroll");
+  let hrzoneLayout = null;
+  let hrzoneLastFilterKey = null;
+
+  function drawHrZones(){
+    document.getElementById("hrzone-hint").textContent = activeYear==="all"
+      ? "Horas por semana en cada zona · últimos 3 años · desliza para ver semanas anteriores"
+      : `Horas por semana en cada zona · ${activeYear}`;
+
+    const box = document.getElementById("hrzone-box");
+    const series = hrZoneWeeklySeries();
+    const n = series.length;
+
+    const padL = 34, padR = 8, padT = 10, padB = 22;
+    const gap = 6;
+    const barW = HRZONE_PX_PER_WEEK-gap;
+    const contentW = Math.max(hrzoneScroll.clientWidth, padL+padR+n*(barW+gap));
+    box.style.width = contentW+"px";
+    const {ctx, w, h} = setupCanvas(hrzoneCanvas, box, 220);
+
+    const totals = series.map(s => s.hours.reduce((a,b)=>a+b,0));
+    const maxTotal = Math.max(1, ...totals);
+    const plotW = w-padL-padR, plotH = h-padT-padB;
+
+    const gridColor = cssVar("--line"), mutedColor = cssVar("--muted"), inkColor = cssVar("--ink-2");
+    ctx.strokeStyle = gridColor; ctx.lineWidth=1; ctx.font="11px system-ui, sans-serif"; ctx.fillStyle=mutedColor;
+    for (let i=0;i<=3;i++){
+      const val = maxTotal/3*i;
+      const y = padT+plotH-(val/maxTotal)*plotH;
+      ctx.beginPath(); ctx.moveTo(padL,y+0.5); ctx.lineTo(w-padR,y+0.5); ctx.stroke();
+      ctx.textAlign="right"; ctx.fillText(val.toFixed(0), padL-8, y+3);
+    }
+
+    const zoneColorsResolved = ZONE_COLORS.map(v=>cssVar(v));
+    const bars = [];
+    series.forEach((s,i) => {
+      const x = padL+i*(barW+gap);
+      let yTop = padT+plotH;
+      const segs = [];
+      s.hours.forEach((hrs,zi) => {
+        if (hrs<=0) return;
+        const segH = (hrs/maxTotal)*plotH;
+        const rectY = yTop-segH;
+        ctx.fillStyle = zoneColorsResolved[zi];
+        ctx.fillRect(x, rectY+1, barW, Math.max(0,segH-1));
+        segs.push({zone:zi, hrs});
+        yTop = rectY;
+      });
+      bars.push({x, w:barW, weekStart:s.weekStart, hours:s.hours, total:totals[i], segs});
+    });
+
+    ctx.fillStyle = inkColor; ctx.textAlign="center"; ctx.font="11px system-ui, sans-serif";
+    const labelEvery = n>26 ? 4 : (n>14 ? 2 : 1);
+    bars.forEach((b,i) => {
+      if (i%labelEvery!==0 && i!==bars.length-1) return;
+      ctx.fillText(`${b.weekStart.getDate()} ${MONTHS[b.weekStart.getMonth()]}`, b.x+b.w/2, h-6);
+    });
+
+    hrzoneLayout = {bars};
+
+    const filterKey = activeCat+"|"+activeYear;
+    if (filterKey !== hrzoneLastFilterKey){
+      hrzoneScroll.scrollLeft = hrzoneScroll.scrollWidth;
+      hrzoneLastFilterKey = filterKey;
+    }
+
+    document.getElementById("hrzone-legend").innerHTML = ZONE_LABELS.map((lbl,i) =>
+      `<span class="legend-item"><span class="legend-dot" style="background:var(${ZONE_COLORS[i]})"></span>${lbl}</span>`).join("");
+
+    const sumZone = [0,0,0,0,0];
+    series.forEach(s => s.hours.forEach((hh,zi)=>sumZone[zi]+=hh));
+    const totalH = sumZone.reduce((a,b)=>a+b,0);
+    const callout = document.getElementById("hrzone-callout");
+    if (totalH>0){
+      const easyPct = ((sumZone[0]+sumZone[1])/totalH)*100;
+      const hardPct = 100-easyPct;
+      const ok = easyPct>=80;
+      const statusColor = ok ? cssVar("--cat-3") : cssVar("--zone-5");
+      callout.innerHTML = `<b style="color:${statusColor}">${easyPct.toFixed(0)}% en Z1-Z2</b><span>${ok?"cumples la regla 80/20 de entrenamiento polarizado":"por debajo del 80% recomendado en zonas suaves"} · ${hardPct.toFixed(0)}% en Z3-Z5 · ${totalH.toFixed(1)} h con FC registrada</span>`;
+    } else {
+      callout.innerHTML = `<span>Sin actividades con FC registrada en este periodo</span>`;
+    }
+  }
+
+  hrzoneCanvas.addEventListener("mousemove", (ev) => {
+    if (!hrzoneLayout) return;
+    const rect = hrzoneCanvas.getBoundingClientRect();
+    const mx = ev.clientX-rect.left, my = ev.clientY-rect.top;
+    const bar = hrzoneLayout.bars.find(b => mx>=b.x && mx<=b.x+b.w);
+    if (!bar || bar.total<=0){ hrzoneTip.classList.remove("show"); return; }
+    const lines = bar.segs.slice().reverse().map(s => `<div>${ZONE_LABELS[s.zone]}: <b>${s.hrs.toFixed(1)} h</b></div>`).join("");
+    hrzoneTip.innerHTML = `<b>Semana del ${fmtDateShort(bar.weekStart)}</b> · ${bar.total.toFixed(1)} h${lines?("<div style='margin-top:4px;opacity:.85'>"+lines+"</div>"):""}`;
+    hrzoneTip.style.left = (bar.x+bar.w/2)+"px";
+    hrzoneTip.style.top = Math.max(0,my-30)+"px";
+    hrzoneTip.classList.add("show");
+  });
+  hrzoneCanvas.addEventListener("mouseleave", () => hrzoneTip.classList.remove("show"));
+
+  /* ================= 7. RITMO VS FC POR AÑO (tabla, ajena a los filtros) ================= */
   const PACE_HR_BUCKET_SEC = 30;
 
   function zoneOfHr(hr, maxHrRef){
@@ -784,7 +1132,7 @@
     table.innerHTML = thead + `<tbody>${tbody}</tbody>`;
   }
 
-  /* ================= 6. COMPARATIVA YEAR TO DATE ================= */
+  /* ================= 8. COMPARATIVA YEAR TO DATE ================= */
   let ytdCat = "all";
   const ytdYears = new Set();
 
@@ -889,6 +1237,8 @@
     drawWeekday();
     drawElev();
     drawPace();
+    drawPMC();
+    drawHrZones();
   }
 
   renderYearSelect();
