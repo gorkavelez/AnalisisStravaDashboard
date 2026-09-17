@@ -16,6 +16,16 @@
     --zone-1:#8fa3ad; --zone-2:#3fae6a; --zone-3:#dba82e; --zone-4:#e2793a; --zone-5:#d64545;
     --shadow: 0 1px 2px rgba(12,18,16,0.04), 0 8px 24px rgba(12,18,16,0.05);
     --radius: 14px;
+    --radius-sm: 11px;
+    --material-1: color-mix(in srgb, var(--surface) 72%, transparent);
+    --material-2: color-mix(in srgb, var(--surface-2) 58%, transparent);
+    --edge: color-mix(in srgb, var(--ink) 9%, transparent);
+    --tint-a: color-mix(in srgb, var(--accent) 9%, transparent);
+    --tint-b: color-mix(in srgb, var(--cat-3) 7%, transparent);
+    --blur: 20px;
+    --blur-sm: 13px;
+    --shadow-lg: 0 1px 1px color-mix(in srgb, var(--ink) 5%, transparent), 0 24px 48px -16px color-mix(in srgb, var(--ink) 24%, transparent);
+    --shadow-sm: 0 1px 1px color-mix(in srgb, var(--ink) 4%, transparent), 0 10px 22px -10px color-mix(in srgb, var(--ink) 16%, transparent);
   }
   @media (prefers-color-scheme: dark){
     :root:where(:not([data-theme="light"])){
@@ -72,7 +82,11 @@
 
   body{
     margin:0;
-    background: var(--bg);
+    background:
+      radial-gradient(900px 520px at 12% -8%, var(--tint-a), transparent 60%),
+      radial-gradient(760px 480px at 100% 0%, var(--tint-b), transparent 55%),
+      var(--bg);
+    background-attachment: fixed;
     color: var(--ink);
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -120,37 +134,52 @@
   /* ---------- Filter bar ---------- */
   .filterbar{
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    position: sticky; top: 12px; z-index: 30;
+    padding: 6px 8px;
+    background: var(--material-1);
+    backdrop-filter: blur(var(--blur)) saturate(180%);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
+    border: 1px solid var(--edge);
+    border-radius: 999px;
+    box-shadow: var(--shadow-sm);
   }
   .segmented{
-    display:flex; flex-wrap:wrap; gap:6px;
-    background: var(--surface);
-    border:1px solid var(--line);
-    border-radius: 999px;
+    display:flex; flex-wrap:wrap; gap:4px;
     padding: 4px;
-    box-shadow: var(--shadow);
+    background: var(--surface-2);
+    border: 1px solid var(--edge);
+    border-radius: 999px;
+    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent);
   }
   .seg-btn{
     appearance:none; border:none; background:transparent; cursor:pointer;
-    padding: 7px 14px;
+    padding: 7px 15px;
     border-radius: 999px;
     font-size: 13px;
     font-weight: 600;
     color: var(--ink-2);
     display:flex; align-items:center; gap:7px;
-    transition: background 120ms ease, color 120ms ease;
+    transition: background 120ms ease, color 120ms ease, transform 100ms ease-out, box-shadow 120ms ease;
   }
-  .seg-dot{ width:8px; height:8px; border-radius:50%; background: var(--dot, var(--muted)); flex:none; }
-  .seg-btn:hover{ background: var(--surface-2); color: var(--ink); }
-  .seg-btn.active{ background: var(--ink); color: var(--bg); }
+  .seg-dot{ width:8px; height:8px; border-radius:50%; background: var(--dot, var(--muted)); flex:none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--dot, var(--muted)) 20%, transparent); }
+  .seg-btn:hover{ background: var(--surface); color: var(--ink); }
+  .seg-btn:active{ transform: scale(0.96); }
+  .seg-btn.active{ background: var(--ink); color: var(--bg); box-shadow: 0 3px 10px color-mix(in srgb, var(--ink) 28%, transparent); }
+  .seg-btn.active .seg-dot{ box-shadow: 0 0 0 3px color-mix(in srgb, var(--bg) 30%, transparent); }
   .seg-btn:focus-visible, button:focus-visible, .seg-btn:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
-  .filter-note{ font-size: 13px; color: var(--muted); }
+  .filter-note{ font-size: 12.5px; font-weight:600; color: var(--ink-2); padding: 7px 14px; background: var(--surface-2); border: 1px solid var(--edge); border-radius: 999px; }
   .year-select{
-    background: var(--surface); color: var(--ink);
-    border: 1px solid var(--line); border-radius: 999px;
-    padding: 9px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
-    box-shadow: var(--shadow);
+    appearance:none; -webkit-appearance:none;
+    background: var(--surface-2) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23888888' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>") no-repeat right 14px center;
+    background-size: 9px 6px;
+    color: var(--ink);
+    border: 1px solid var(--edge); border-radius: 999px;
+    padding: 9px 34px 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 120ms ease, box-shadow 120ms ease, transform 100ms ease-out;
   }
-  .year-select:hover{ background: var(--surface-2); }
+  .year-select:hover{ border-color: var(--accent); box-shadow: var(--shadow-lg); }
+  .year-select:active{ transform: scale(0.98); }
   .year-select:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
   .nav{ display:flex; gap:16px; margin-bottom:4px; }
   .nav a{
@@ -162,10 +191,12 @@
 
   /* ---------- Panels ---------- */
   .panel{
-    background: var(--surface);
-    border: 1px solid var(--line);
+    background: var(--material-1);
+    backdrop-filter: blur(var(--blur)) saturate(160%);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(160%);
+    border: 1px solid var(--edge);
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-lg);
     padding: 20px 20px 18px;
   }
   .panel-head{
@@ -188,15 +219,15 @@
   .kpi-grid{
     display:grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1px;
-    background: var(--line);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    overflow:hidden;
-    box-shadow: var(--shadow);
+    gap: 10px;
   }
   .kpi{
-    background: var(--surface);
+    background: var(--material-2);
+    backdrop-filter: blur(var(--blur-sm)) saturate(160%);
+    -webkit-backdrop-filter: blur(var(--blur-sm)) saturate(160%);
+    border: 1px solid var(--edge);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
     padding: 16px 18px;
     display:flex; flex-direction:column; gap:6px;
   }
@@ -240,8 +271,8 @@
   .legend-dot{ width:9px; height:9px; border-radius:2px; flex:none; }
 
   /* ---------- Records ---------- */
-  .records{ display:grid; grid-template-columns: repeat(auto-fit, minmax(230px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius: var(--radius); overflow:hidden; box-shadow: var(--shadow); }
-  .record{ background:var(--surface); padding:16px 18px; display:flex; flex-direction:column; gap:5px; }
+  .records{ display:grid; grid-template-columns: repeat(auto-fit, minmax(230px,1fr)); gap:10px; }
+  .record{ background:var(--material-2); backdrop-filter: blur(var(--blur-sm)) saturate(160%); -webkit-backdrop-filter: blur(var(--blur-sm)) saturate(160%); border:1px solid var(--edge); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); padding:16px 18px; display:flex; flex-direction:column; gap:5px; }
   .record-tag{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); font-weight:700; }
   .record-value{ font-size:20px; font-weight:700; }
   .record-name{ font-size:12.5px; color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -252,8 +283,10 @@
   table{ width:100%; border-collapse:collapse; font-size:13px; min-width:720px; }
   thead th{
     text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.06em;
-    color:var(--muted); font-weight:700; padding:0 10px 8px; border-bottom:1px solid var(--line);
-    position:sticky; top:0; background:var(--surface);
+    color:var(--muted); font-weight:700; padding:0 10px 8px; border-bottom:1px solid var(--edge);
+    position:sticky; top:0; background: var(--material-1);
+    backdrop-filter: blur(var(--blur-sm)) saturate(160%);
+    -webkit-backdrop-filter: blur(var(--blur-sm)) saturate(160%);
     cursor:pointer; user-select:none; white-space:nowrap;
   }
   thead th:hover{ color:var(--ink); }
