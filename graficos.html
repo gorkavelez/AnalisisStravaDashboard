@@ -144,6 +144,7 @@
   }
   .year-select:hover{ border-color: var(--accent); box-shadow: var(--shadow-lg); }
   .year-select:active{ transform: scale(0.98); }
+  .filterbar-secondary{ display:flex; align-items:center; gap:10px; }
 
   .panel{ background: var(--material-1); backdrop-filter: blur(var(--blur)) saturate(160%); -webkit-backdrop-filter: blur(var(--blur)) saturate(160%); border:1px solid var(--edge); border-radius: var(--radius); box-shadow: var(--shadow-lg); padding:20px 20px 18px; }
   .panel-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
@@ -186,6 +187,17 @@
   .ytd-delta{ font-size:10.5px; color:var(--muted); margin-top:1px; font-variant-numeric:tabular-nums; }
 
   footer{ text-align:center; font-size:12px; color: var(--muted); padding-top:10px; }
+
+  /* ---------- Mobile (e.g. iPhone SE / small phones) ---------- */
+  @media (max-width: 640px){
+    .filterbar{ flex-direction: column; align-items: stretch; border-radius: var(--radius); padding: 8px; gap: 8px; }
+    .segmented, .ytd-year-toggles{ flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .segmented::-webkit-scrollbar, .ytd-year-toggles::-webkit-scrollbar{ display: none; }
+    .seg-btn{ flex: none; white-space: nowrap; padding: 9px 14px; }
+    .filterbar-secondary{ flex-wrap: wrap; }
+    .year-select, .filter-note{ flex: none; }
+    .panel-head-text + .year-select{ width: 100%; }
+  }
 </style>
 
 <div class="wrap">
@@ -203,8 +215,10 @@
 
   <div class="filterbar">
     <div class="segmented" id="filter-seg" role="group" aria-label="Filtrar por deporte"></div>
-    <select class="year-select" id="year-select" aria-label="Filtrar por año"></select>
-    <div class="filter-note" id="filter-note"></div>
+    <div class="filterbar-secondary">
+      <select class="year-select" id="year-select" aria-label="Filtrar por año"></select>
+      <div class="filter-note" id="filter-note"></div>
+    </div>
   </div>
 
   <div class="panel">
