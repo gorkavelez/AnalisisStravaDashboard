@@ -110,9 +110,20 @@ function Map-Type($sportType, $type) {
 }
 
 $mapped = foreach ($a in $all) {
+  # PowerShell 7 (p.ej. GitHub Actions) puede deserializar start_date como [datetime] en vez de
+  # dejarlo como string; PowerShell 5.1 (Windows local) no lo hace. Si se deja que -replace haga
+  # la conversión implícita a string, el resultado sale formateado según la cultura del sistema
+  # (p.ej. "01/01/2015" en vez de "2015-01-01"), corrompiendo la fecha para el resto de la app.
+  # Se fuerza aquí un formato ISO 8601 estable sin importar el tipo ni la cultura del entorno.
+  $rawDate = $a.start_date
+  $d = if ($rawDate -is [datetime]) {
+    $rawDate.ToString("yyyy-MM-ddTHH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture)
+  } else {
+    [string]$rawDate -replace 'Z$',''
+  }
   [PSCustomObject]@{
     id = $a.id
-    d  = ($a.start_date -replace 'Z$','')
+    d  = $d
     n  = $a.name
     t  = Map-Type $a.sport_type $a.type
     es = if ($a.elapsed_time) { [double]$a.elapsed_time } else { 0 }
