@@ -1,0 +1,61 @@
+name: Actualizar actividades de Strava
+
+# Se lanza a mano desde la pestaña "Actions" de GitHub (o desde el enlace
+# "Actualizar" del dashboard). No corre automáticamente ni por horario.
+on:
+  workflow_dispatch:
+    inputs:
+      splitsCount:
+        description: "Nº de carreras recientes a las que calcular parciales por km"
+        required: false
+        default: "30"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Actualizar actividades desde Strava
+        shell: pwsh
+        env:
+          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+        run: |
+          ./fetch_strava_activities.ps1 `
+            -ClientId $env:STRAVA_CLIENT_ID `
+            -ClientSecret $env:STRAVA_CLIENT_SECRET `
+            -RefreshToken $env:STRAVA_REFRESH_TOKEN `
+            -UpdateDashboards
+
+      - name: Actualizar parciales por km de las carreras recientes
+        shell: pwsh
+        env:
+          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+        run: |
+          ./fetch_strava_splits.ps1 `
+            -ClientId $env:STRAVA_CLIENT_ID `
+            -ClientSecret $env:STRAVA_CLIENT_SECRET `
+            -RefreshToken $env:STRAVA_REFRESH_TOKEN `
+            -Count ${{ github.event.inputs.splitsCount }}
+
+      - name: Comitear y subir si hay cambios
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add activities.json splits.json index.html graficos.html
+          if git diff --cached --quiet; then
+            echo "Sin actividades nuevas, nada que comitear."
+          else
+            git commit -m "Actualiza actividades desde Strava ($(date -u +%Y-%m-%d))
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+            git push
+          fi
