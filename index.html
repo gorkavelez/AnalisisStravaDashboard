@@ -111,6 +111,29 @@
     display:flex; flex-direction:column; gap:6px;
     padding: 6px 2px 4px;
   }
+  header.header-row{
+    flex-direction: row; align-items: flex-start; justify-content: space-between; gap:16px; flex-wrap: wrap;
+  }
+  .header-text{ display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .btn-refresh{
+    flex: none;
+    display:flex; align-items:center; gap:7px;
+    appearance:none; text-decoration:none; cursor:pointer;
+    background: var(--material-2);
+    backdrop-filter: blur(var(--blur-sm)) saturate(160%);
+    -webkit-backdrop-filter: blur(var(--blur-sm)) saturate(160%);
+    border: 1px solid var(--edge);
+    border-radius: 999px;
+    padding: 9px 16px;
+    font-size: 13px; font-weight: 600; color: var(--ink);
+    box-shadow: var(--shadow-sm);
+    transition: border-color 120ms ease, box-shadow 120ms ease, transform 100ms ease-out;
+    margin-top: 2px;
+  }
+  .btn-refresh:hover{ border-color: var(--accent); box-shadow: var(--shadow-lg); }
+  .btn-refresh:active{ transform: scale(0.97); }
+  .btn-refresh:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn-refresh-icon{ font-size: 15px; line-height:1; color: var(--accent); }
   .eyebrow{
     text-transform: uppercase;
     letter-spacing: 0.14em;
@@ -325,6 +348,8 @@
     .segmented::-webkit-scrollbar{ display: none; }
     .seg-btn{ flex: none; white-space: nowrap; padding: 9px 14px; }
     .year-select{ flex: none; }
+    .header-row{ flex-direction: column; align-items: stretch; }
+    .btn-refresh{ justify-content: center; margin-top: 4px; }
   }
 </style>
 
@@ -335,10 +360,15 @@
     <a href="graficos.html">Gráficos →</a>
   </nav>
 
-  <header>
-    <div class="eyebrow">Donosti · Euskadi · desde 2012</div>
-    <h1>Dashboard de actividades</h1>
-    <div class="sub" id="sub-line">Cargando actividades…</div>
+  <header class="header-row">
+    <div class="header-text">
+      <div class="eyebrow">Donosti · Euskadi · desde 2012</div>
+      <h1>Dashboard de actividades</h1>
+      <div class="sub" id="sub-line">Cargando actividades…</div>
+    </div>
+    <a class="btn-refresh" href="https://github.com/gorkavelez/AnalisisStravaDashboard/actions/workflows/update-activities.yml" target="_blank" rel="noopener" title="Comprueba en Strava si hay actividades nuevas y las añade al dashboard (abre GitHub Actions, requiere iniciar sesión en GitHub)">
+      <span class="btn-refresh-icon" aria-hidden="true">↻</span> Actualizar
+    </a>
   </header>
 
   <div class="filterbar">
