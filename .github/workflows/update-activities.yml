@@ -54,8 +54,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "Sin actividades nuevas, nada que comitear."
           else
-            git commit -m "Actualiza actividades desde Strava ($(date -u +%Y-%m-%d))
-
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+            git commit -m "Actualiza actividades desde Strava ($(date -u +%Y-%m-%d))" -m "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
             git push
           fi
